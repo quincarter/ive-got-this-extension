@@ -207,6 +207,39 @@ describe('Trakt Injection', () => {
       expect(item?.querySelector('a')?.href).to.equal('https://emby.test/item/123');
     });
 
+    it('finds Where to Watch on app.trakt.tv whatever the UI language', () => {
+      document.body.innerHTML = `
+        <div class="trakt-where-to-watch-list">
+          <section class="section-list-container">
+            <div class="trakt-list-inset-title">
+              <div class="trakt-list-title">
+                <span class="title shadow-list-title ellipsis">Где посмотреть</span>
+              </div>
+            </div>
+            <div class="section-list">
+              <div class="trakt-list-item-container section-list-horizontal-scroll">
+                <div class="trakt-where-to-watch-item">Hulu</div>
+              </div>
+            </div>
+          </section>
+        </div>
+      `;
+      const response: CheckMediaResponse = {
+        type: 'CHECK_MEDIA_RESPONSE',
+        payload: {
+          status: 'available',
+          serverType: 'jellyfin',
+          itemUrl: 'https://jf.test/item/789',
+        },
+      };
+
+      tryInjectTraktItem(response);
+
+      const container = document.querySelector('.trakt-list-item-container');
+      expect(container?.firstElementChild?.id).to.equal('media-connector-wtw-item');
+      expect(container?.children.length).to.equal(2);
+    });
+
     it('injects Jellyfin item with Partial label when partial', () => {
       const response: CheckMediaResponse = {
         type: 'CHECK_MEDIA_RESPONSE',

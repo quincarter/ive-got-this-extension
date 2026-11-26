@@ -40,10 +40,8 @@
     {
       "matches": [
         "https://www.imdb.com/title/*",
-        "https://trakt.tv/movies/*",
-        "https://trakt.tv/shows/*",
-        "https://*.trakt.tv/movies/*",
-        "https://*.trakt.tv/shows/*",
+        "https://trakt.tv/*",
+        "https://*.trakt.tv/*",
         "https://www.netflix.com/title/*",
         "https://www.amazon.com/*/dp/*",
         "https://www.primevideo.com/detail/*",

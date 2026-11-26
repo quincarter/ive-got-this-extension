@@ -29,6 +29,7 @@ export const fixtureUrls: Record<string, string> = {
   'imdb-episode.html': 'https://www.imdb.com/title/tt2301451/',
   'trakt-movie.html': 'https://trakt.tv/movies/the-matrix-1999',
   'trakt-series.html': 'https://trakt.tv/shows/breaking-bad',
+  'trakt-app-show.html': 'https://app.trakt.tv/shows/the-mentalist',
   'google-movie.html': 'https://www.google.com/search?q=the+matrix+1999',
   'google-series.html': 'https://www.google.com/search?q=breaking+bad+tv+series',
   'bing-movie.html': 'https://www.bing.com/search?q=the+matrix',
@@ -219,12 +220,16 @@ const buildChromeMock = (handlers: MessageHandlerMap): string => {
     (function() {
       const handlers = ${serializedHandlers};
 
+      // Messages the content script sent, for tests that check what it detected.
+      window.__sentMessages = [];
+
       if (!window.chrome) window.chrome = {};
       if (!window.chrome.runtime) {
         window.chrome.runtime = {
           id: 'mock-extension-id',
           lastError: null,
           sendMessage: function(message, callback) {
+            window.__sentMessages.push(message);
             const type = message && message.type;
             const response = handlers[type];
             if (callback && response !== undefined) {
