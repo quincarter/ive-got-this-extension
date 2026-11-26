@@ -10,6 +10,7 @@ import {
   testServerConnection,
   checkMediaAvailability,
   checkMediaAvailabilityEffect,
+  clearJellyfinIndexCache,
 } from './api-client.js';
 import type { ExtensionConfig, MediaSearchResult } from '../types/index.js';
 
@@ -176,18 +177,66 @@ describe('searchByProviderId', () => {
     expect(url).toContain('AnyProviderIdEquals=Imdb.tt0133093');
   });
 
-  it('uses AnyImdbId for Jellyfin', async () => {
-    await searchByProviderId(mockJellyfinConfig, 'tt0133093', 'Imdb');
+  describe('on Jellyfin (no server-side provider ID filter)', () => {
+    const jellyfinIndex: MediaSearchResult = {
+      Items: [
+        {
+          Id: 'matrix',
+          Name: 'The Matrix',
+          Type: 'Movie',
+          ProductionYear: 1999,
+          ProviderIds: { Imdb: 'tt0133093', Tmdb: '603' },
+        },
+        {
+          Id: 'bb',
+          Name: 'Breaking Bad',
+          Type: 'Series',
+          ProductionYear: 2008,
+          ProviderIds: { imdb: 'tt0903747', tmdb: '1396' },
+        },
+        { Id: 'no-ids', Name: 'Home Video', Type: 'Movie' },
+      ],
+      TotalRecordCount: 0,
+    };
 
-    const url = vi.mocked(fetch).mock.calls[0][0] as string;
-    expect(url).toContain('AnyImdbId=tt0133093');
-  });
+    beforeEach(() => {
+      clearJellyfinIndexCache();
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(jellyfinIndex) }),
+      );
+    });
 
-  it('uses AnyTmdbId for Jellyfin with Tmdb provider', async () => {
-    await searchByProviderId(mockJellyfinConfig, '603', 'Tmdb');
+    it('fetches the movie/series index with provider IDs instead of AnyImdbId', async () => {
+      await searchByProviderId(mockJellyfinConfig, 'tt0133093', 'Imdb');
 
-    const url = vi.mocked(fetch).mock.calls[0][0] as string;
-    expect(url).toContain('AnyTmdbId=603');
+      const url = vi.mocked(fetch).mock.calls[0][0] as string;
+      expect(url).not.toContain('AnyImdbId');
+      expect(url).toContain('Fields=ProviderIds');
+      expect(url).toContain('IncludeItemTypes=Movie%2CSeries');
+    });
+
+    it('returns only the item with a matching IMDb ID', async () => {
+      const result = await searchByProviderId(mockJellyfinConfig, 'tt0133093', 'Imdb');
+      expect(result.Items.map((i) => i.Id)).toEqual(['matrix']);
+      expect(result.TotalRecordCount).toBe(1);
+    });
+
+    it('matches TMDb IDs whatever the key casing', async () => {
+      const result = await searchByProviderId(mockJellyfinConfig, '1396', 'Tmdb');
+      expect(result.Items.map((i) => i.Id)).toEqual(['bb']);
+    });
+
+    it('returns nothing when no item carries the ID', async () => {
+      const result = await searchByProviderId(mockJellyfinConfig, '999999', 'Tmdb');
+      expect(result.Items).toEqual([]);
+    });
+
+    it('reuses the cached index for later lookups', async () => {
+      await searchByProviderId(mockJellyfinConfig, 'tt0133093', 'Imdb');
+      await searchByProviderId(mockJellyfinConfig, '1396', 'Tmdb');
+      expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('includes IncludeItemTypes when specified', async () => {
