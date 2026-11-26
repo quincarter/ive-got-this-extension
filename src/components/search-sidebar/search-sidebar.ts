@@ -1,6 +1,6 @@
 import { LitElement, html, css } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
-import { customElement, property } from 'lit/decorators.js';
+import { property } from 'lit/decorators.js';
 import {
   COMBINED_SVG,
   buildStatusBadge,
@@ -8,7 +8,6 @@ import {
 } from '../../content-scripts/common-ui.js';
 import type { SearchJellyseerrResponse, JellyseerrResultItem } from '../../types/messages.js';
 
-@customElement('search-sidebar')
 export class SearchSidebar extends LitElement {
   @property({ type: Object })
   response?: SearchJellyseerrResponse;
@@ -289,6 +288,14 @@ export class SearchSidebar extends LitElement {
 }
 
 const nothing = html``;
+
+// This module is bundled into the content script. Chrome gives content
+// scripts no custom element registry (`customElements` is null in the
+// isolated world), so `@customElement` threw on import and took the whole
+// content script down on every site. Register only where a registry exists.
+if (globalThis.customElements && !globalThis.customElements.get('search-sidebar')) {
+  globalThis.customElements.define('search-sidebar', SearchSidebar);
+}
 
 declare global {
   interface HTMLElementTagNameMap {
