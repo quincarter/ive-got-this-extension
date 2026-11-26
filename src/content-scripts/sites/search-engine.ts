@@ -1,6 +1,10 @@
 import { sendMessage, injectSkeletonKeyframes, COMBINED_SVG } from '../common-ui.js';
 import { tryDetectMedia, identifySite } from '../index.js';
 import type { SearchJellyseerrResponse, GetConfigResponse } from '../../types/messages.js';
+// Chrome gives content scripts no custom element registry (`customElements` is null in the
+// isolated world). The polyfill installs one for this world only, so <search-sidebar> can
+// register and render; where a native registry exists it does nothing.
+import '@webcomponents/custom-elements';
 import '../../components/search-sidebar/search-sidebar.js';
 
 const SIDEBAR_ID = 'media-connector-sidebar';

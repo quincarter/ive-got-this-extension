@@ -11,6 +11,7 @@ import {
   buildPayload,
   sendMessage,
   handleRequestClick,
+  openInNewTab,
   requestFromSidebar,
 } from './common-ui.js';
 import type { JellyseerrResultItem } from '../types/messages.js';
@@ -90,6 +91,16 @@ describe('common-ui', () => {
       );
       const response = await sendMessage({ type: 'TEST' });
       expect(response).to.be.undefined;
+    });
+  });
+
+  describe('openInNewTab', () => {
+    it('asks the service worker to open the URL', async () => {
+      await openInNewTab('https://jsr.test/movie/1');
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        { type: 'OPEN_TAB', payload: { url: 'https://jsr.test/movie/1' } },
+        expect.any(Function),
+      );
     });
   });
 

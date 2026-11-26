@@ -33,6 +33,7 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@webcomponents/custom-elements": "^1.6.1",
     "effect": "^3.19.17",
     "lit": "^3.3.2"
   },

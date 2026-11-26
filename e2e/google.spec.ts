@@ -61,4 +61,27 @@ test.describe('Google Search — sidebar injection', () => {
     await expect(sidebar).toContainText('Request');
     await expect(sidebar).toContainText('Not in library');
   });
+
+  test('renders without a custom element registry, as in a Chrome content script', async ({
+    page,
+  }) => {
+    // Chrome runs content scripts in an isolated world where `customElements` is null.
+    // The tests inject the script into the page instead, so hide the page's registry.
+    await page.addInitScript(() => {
+      Object.defineProperty(window, 'customElements', {
+        value: null,
+        configurable: true,
+        writable: true,
+      });
+    });
+    await setupContentScript(page, 'google-movie.html', {
+      GET_CONFIG: mockResponses.configEmby,
+      SEARCH_JELLYSEERR: mockResponses.searchJellyseerrMovie('The Matrix'),
+    });
+
+    const sidebar = page.locator('#media-connector-sidebar');
+    await expect(sidebar).toBeVisible();
+    await expect(sidebar).toContainText('The Matrix');
+    await expect(sidebar).toContainText('✓ Available');
+  });
 });

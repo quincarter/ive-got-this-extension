@@ -48,13 +48,6 @@ export class SandboxApp extends LitElement {
   override async connectedCallback(): Promise<void> {
     super.connectedCallback();
     this._config = await Effect.runPromise(loadConfigEffect);
-
-    // Listen for tab open events from components
-    this.addEventListener('media-connector-open-tab', (e: Event) => {
-      const detail = (e as CustomEvent<{ url: string }>).detail;
-      console.log('Sandbox caught OPEN_TAB event:', detail.url);
-      alert(`Component requested to open URL: ${detail.url}`);
-    });
   }
 
   render() {
