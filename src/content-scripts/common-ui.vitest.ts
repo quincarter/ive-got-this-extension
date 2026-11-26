@@ -11,6 +11,7 @@ import {
   buildPayload,
   sendMessage,
   handleRequestClick,
+  openExtensionSettings,
   openInNewTab,
   requestFromSidebar,
 } from './common-ui.js';
@@ -91,6 +92,16 @@ describe('common-ui', () => {
       );
       const response = await sendMessage({ type: 'TEST' });
       expect(response).to.be.undefined;
+    });
+  });
+
+  describe('openExtensionSettings', () => {
+    it('asks the service worker to open the settings', async () => {
+      await openExtensionSettings();
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        { type: 'OPEN_SETTINGS' },
+        expect.any(Function),
+      );
     });
   });
 

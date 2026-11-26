@@ -86,7 +86,7 @@ describe('search-sidebar', () => {
       html`<search-sidebar .response="${pendingResponse}"></search-sidebar>`,
     );
 
-    const pendingBtn = el.shadowRoot?.querySelector('button');
+    const pendingBtn = el.shadowRoot?.querySelector('.result-row button');
     expect(pendingBtn?.textContent?.includes('Pending')).to.be.true;
   });
 
@@ -105,7 +105,7 @@ describe('search-sidebar', () => {
       html`<search-sidebar .response="${processingResponse}"></search-sidebar>`,
     );
 
-    const pendingBtn = el.shadowRoot?.querySelector('button');
+    const pendingBtn = el.shadowRoot?.querySelector('.result-row button');
     expect(pendingBtn?.textContent?.includes('Pending')).to.be.true;
   });
 
@@ -131,7 +131,7 @@ describe('search-sidebar', () => {
     expect(reqBtn.textContent).to.contain('Request');
   });
 
-  describe('Jellyseerr buttons', () => {
+  describe('buttons that talk to the service worker', () => {
     // In the extension the sidebar runs inside the content script, which has to ask the
     // service worker to open tabs. Record what the buttons send.
     type ChromeMock = { runtime: { id: string; lastError: null; sendMessage: unknown } };
@@ -194,6 +194,28 @@ describe('search-sidebar', () => {
       expect(sent).to.deep.equal([
         { type: 'OPEN_TAB', payload: { url: `${jellyseerrUrl}/tv/${tvId}` } },
       ]);
+    });
+
+    it('opens the extension settings from the header', async () => {
+      const el = await fixture<SearchSidebar>(
+        html`<search-sidebar .response="${mockSearchResponses.multiple}"></search-sidebar>`,
+      );
+
+      const btn = el.shadowRoot?.querySelector('.header .settings-btn') as HTMLButtonElement;
+      expect(btn.title).to.equal('Extension settings');
+      btn.click();
+      expect(sent).to.deep.equal([{ type: 'OPEN_SETTINGS' }]);
+    });
+
+    it('offers to open the settings when Jellyseerr is not configured', async () => {
+      const el = await fixture<SearchSidebar>(
+        html`<search-sidebar .response="${mockSearchResponses.unconfigured}"></search-sidebar>`,
+      );
+
+      const btn = el.shadowRoot?.querySelector('.info-row .open-settings') as HTMLButtonElement;
+      expect(btn.textContent?.trim()).to.equal('Open settings');
+      btn.click();
+      expect(sent).to.deep.equal([{ type: 'OPEN_SETTINGS' }]);
     });
   });
 });
