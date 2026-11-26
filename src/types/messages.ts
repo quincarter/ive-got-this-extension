@@ -12,7 +12,16 @@ export type ExtensionMessage =
   | GetConfigResponse
   | SaveConfigMessage
   | SaveConfigResponse
-  | OpenTabMessage;
+  | OpenTabMessage
+  | OpenSettingsMessage;
+
+/**
+ * Request to open the extension's settings (its popup, or the same page in a tab).
+ * Content scripts can't open the popup themselves.
+ */
+export interface OpenSettingsMessage {
+  readonly type: 'OPEN_SETTINGS';
+}
 
 /**
  * Request to open a URL in a new tab via the service worker.

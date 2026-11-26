@@ -44,6 +44,20 @@ export const sendMessage = <T>(message: unknown): Promise<T | undefined> => {
   });
 };
 
+/**
+ * Open a URL in a new tab through the service worker. A tab the extension opens carries the
+ * site's SameSite cookies, which a link clicked on a foreign page would not (Jellyseerr's
+ * session cookie, for one).
+ */
+export const openInNewTab = (url: string): Promise<unknown> =>
+  sendMessage({ type: 'OPEN_TAB', payload: { url } });
+
+/**
+ * Open the extension's settings from a page. Content scripts can't open the popup
+ * themselves, so the service worker does it (or opens the same page in a tab).
+ */
+export const openExtensionSettings = (): Promise<unknown> => sendMessage({ type: 'OPEN_SETTINGS' });
+
 export const EMBY_SVG = `<svg width="48" height="48" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Emby"><path d="m97.1 229.4 26.5 26.5L0 379.5l132.4 132.4 26.5-26.5L282.5 609l141.2-141.2-26.5-26.5L512 326.5 379.6 194.1l-26.5 26.5L229.5 97z" fill="#52b54b" transform="translate(0 -97)"/><path d="M196.8 351.2v-193L366 254.7 281.4 303z" fill="#fff" transform="translate(0 97)"/></svg>`;
 
 export const JELLYFIN_SVG = `<svg width="48" height="48" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Jellyfin"><defs><linearGradient id="jellyfin-gradient-cs" x1="110.25" y1="213.3" x2="496.14" y2="436.09" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#aa5cc3"/><stop offset="1" stop-color="#00a4dc"/></linearGradient></defs><g transform="translate(-5.42, -7.37)"><path d="M261.42,201.62c-20.44,0-86.24,119.29-76.2,139.43s142.48,19.92,152.4,0S281.86,201.63,261.42,201.62Z" fill="url(#jellyfin-gradient-cs)"/><path d="M261.42,23.3C199.83,23.3,1.57,382.73,31.8,443.43s429.34,60,459.24,0S323,23.3,261.42,23.3ZM411.9,390.76c-19.59,39.33-281.08,39.77-300.9,0S221.1,115.48,261.45,115.48,431.49,351.42,411.9,390.76Z" fill="url(#jellyfin-gradient-cs)"/></g></svg>`;

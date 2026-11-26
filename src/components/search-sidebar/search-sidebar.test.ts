@@ -86,38 +86,8 @@ describe('search-sidebar', () => {
       html`<search-sidebar .response="${pendingResponse}"></search-sidebar>`,
     );
 
-    const pendingBtn = el.shadowRoot?.querySelector('button');
+    const pendingBtn = el.shadowRoot?.querySelector('.result-row button');
     expect(pendingBtn?.textContent?.includes('Pending')).to.be.true;
-  });
-
-  it('dispatches open-tab event when pending button is clicked', async () => {
-    const pendingResponse: SearchJellyseerrResponse = {
-      type: 'SEARCH_JELLYSEERR_RESPONSE',
-      payload: {
-        results: [{ id: 123, title: 'Pending Movie', status: 'pending', mediaType: 'movie' }],
-        jellyseerrEnabled: true,
-        serverType: 'emby',
-        jellyseerrUrl: 'https://jsr.test',
-      },
-    };
-
-    const el = await fixture<SearchSidebar>(
-      html`<search-sidebar .response="${pendingResponse}"></search-sidebar>`,
-    );
-
-    let eventDetail: { url: string } | null = null;
-    window.addEventListener(
-      'media-connector-open-tab',
-      ((e: CustomEvent) => {
-        eventDetail = e.detail;
-      }) as EventListener,
-      { once: true },
-    );
-
-    const pendingBtn = el.shadowRoot?.querySelector('button');
-    pendingBtn?.click();
-
-    expect(eventDetail?.url).to.equal('https://jsr.test/movie/123');
   });
 
   it('renders processing status button', async () => {
@@ -135,7 +105,7 @@ describe('search-sidebar', () => {
       html`<search-sidebar .response="${processingResponse}"></search-sidebar>`,
     );
 
-    const pendingBtn = el.shadowRoot?.querySelector('button');
+    const pendingBtn = el.shadowRoot?.querySelector('.result-row button');
     expect(pendingBtn?.textContent?.includes('Pending')).to.be.true;
   });
 
@@ -159,5 +129,93 @@ describe('search-sidebar', () => {
     const rows = el.shadowRoot?.querySelectorAll('.result-row');
     const reqBtn = rows?.[2].querySelector('button') as HTMLButtonElement;
     expect(reqBtn.textContent).to.contain('Request');
+  });
+
+  describe('buttons that talk to the service worker', () => {
+    // In the extension the sidebar runs inside the content script, which has to ask the
+    // service worker to open tabs. Record what the buttons send.
+    type ChromeMock = { runtime: { id: string; lastError: null; sendMessage: unknown } };
+    let sent: unknown[];
+    let savedChrome: unknown;
+
+    beforeEach(() => {
+      sent = [];
+      savedChrome = (window as unknown as { chrome?: unknown }).chrome;
+      (window as unknown as { chrome: ChromeMock }).chrome = {
+        runtime: {
+          id: 'test-extension',
+          lastError: null,
+          sendMessage: (message: unknown, callback?: (r: unknown) => void) => {
+            sent.push(message);
+            callback?.(undefined);
+          },
+        },
+      };
+    });
+
+    afterEach(() => {
+      (window as unknown as { chrome?: unknown }).chrome = savedChrome;
+    });
+
+    it('asks the service worker to open Jellyseerr from a pending request', async () => {
+      const pendingResponse: SearchJellyseerrResponse = {
+        type: 'SEARCH_JELLYSEERR_RESPONSE',
+        payload: {
+          results: [{ id: 123, title: 'Pending Movie', status: 'pending', mediaType: 'movie' }],
+          jellyseerrEnabled: true,
+          serverType: 'emby',
+          jellyseerrUrl: 'https://jsr.test',
+        },
+      };
+      const el = await fixture<SearchSidebar>(
+        html`<search-sidebar .response="${pendingResponse}"></search-sidebar>`,
+      );
+
+      (el.shadowRoot?.querySelector('.result-row button') as HTMLButtonElement).click();
+
+      expect(sent).to.deep.equal([
+        { type: 'OPEN_TAB', payload: { url: 'https://jsr.test/movie/123' } },
+      ]);
+    });
+
+    it('asks the service worker to open Jellyseerr from an available title', async () => {
+      const el = await fixture<SearchSidebar>(
+        html`<search-sidebar .response="${mockSearchResponses.multiple}"></search-sidebar>`,
+      );
+      const jellyseerrUrl = mockSearchResponses.multiple.payload.jellyseerrUrl;
+      const tvRow = el.shadowRoot?.querySelectorAll('.result-row')[1];
+      const manageBtn = Array.from(tvRow?.querySelectorAll('button') ?? []).find((b) =>
+        b.textContent?.includes('Manage'),
+      ) as HTMLButtonElement;
+
+      manageBtn.click();
+
+      const tvId = mockSearchResponses.multiple.payload.results[1].id;
+      expect(sent).to.deep.equal([
+        { type: 'OPEN_TAB', payload: { url: `${jellyseerrUrl}/tv/${tvId}` } },
+      ]);
+    });
+
+    it('opens the extension settings from the header', async () => {
+      const el = await fixture<SearchSidebar>(
+        html`<search-sidebar .response="${mockSearchResponses.multiple}"></search-sidebar>`,
+      );
+
+      const btn = el.shadowRoot?.querySelector('.header .settings-btn') as HTMLButtonElement;
+      expect(btn.title).to.equal('Extension settings');
+      btn.click();
+      expect(sent).to.deep.equal([{ type: 'OPEN_SETTINGS' }]);
+    });
+
+    it('offers to open the settings when Jellyseerr is not configured', async () => {
+      const el = await fixture<SearchSidebar>(
+        html`<search-sidebar .response="${mockSearchResponses.unconfigured}"></search-sidebar>`,
+      );
+
+      const btn = el.shadowRoot?.querySelector('.info-row .open-settings') as HTMLButtonElement;
+      expect(btn.textContent?.trim()).to.equal('Open settings');
+      btn.click();
+      expect(sent).to.deep.equal([{ type: 'OPEN_SETTINGS' }]);
+    });
   });
 });

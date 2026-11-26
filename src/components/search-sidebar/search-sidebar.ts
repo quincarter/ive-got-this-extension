@@ -1,14 +1,15 @@
 import { LitElement, html, css } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
-import { customElement, property } from 'lit/decorators.js';
+import { property } from 'lit/decorators.js';
 import {
   COMBINED_SVG,
   buildStatusBadge,
+  openExtensionSettings,
+  openInNewTab,
   requestFromSidebar,
 } from '../../content-scripts/common-ui.js';
 import type { SearchJellyseerrResponse, JellyseerrResultItem } from '../../types/messages.js';
 
-@customElement('search-sidebar')
 export class SearchSidebar extends LitElement {
   @property({ type: Object })
   response?: SearchJellyseerrResponse;
@@ -60,6 +61,45 @@ export class SearchSidebar extends LitElement {
       font-size: 11px;
       color: #a89cc0;
       margin-top: 2px;
+    }
+
+    .settings-btn {
+      margin-left: auto;
+      align-self: flex-start;
+      padding: 4px 7px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: #a89cc0;
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
+      transition:
+        background 0.15s,
+        color 0.15s;
+    }
+
+    .settings-btn:hover,
+    .settings-btn:focus-visible {
+      background: rgba(255, 255, 255, 0.08);
+      color: #d0bcff;
+    }
+
+    .info-row .open-settings {
+      margin-top: 8px;
+      padding: 5px 12px;
+      border: none;
+      border-radius: 6px;
+      background: #7b2fbe;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.4;
+      cursor: pointer;
+    }
+
+    .info-row .open-settings:hover {
+      background: #5e1f9b;
     }
 
     .result-row {
@@ -159,13 +199,24 @@ export class SearchSidebar extends LitElement {
           <div class="header-title">I've got this!</div>
           <div class="header-subtitle">Powered by Jellyseerr · ${serverLabel}</div>
         </div>
+        <button
+          class="settings-btn"
+          title="Extension settings"
+          aria-label="Extension settings"
+          @click="${this._openSettings}"
+        >
+          ⚙︎
+        </button>
       </div>
 
       ${!jellyseerrEnabled
         ? this._renderInfoRow(
             '⚙️',
             'Jellyseerr not configured',
-            'Open the extension popup to set your Jellyseerr URL and API key.',
+            'Set your Jellyseerr URL and API key in the extension settings.',
+            html`<button class="open-settings" @click="${this._openSettings}">
+              Open settings
+            </button>`,
           )
         : error
           ? this._renderInfoRow('⚠️', 'Connection error', error)
@@ -179,13 +230,18 @@ export class SearchSidebar extends LitElement {
     `;
   }
 
-  private _renderInfoRow(emoji: string, title: string, desc: string) {
+  private _renderInfoRow(emoji: string, title: string, desc: string, action?: unknown) {
     return html`
       <div class="info-row">
         <div class="info-row-title">${emoji} ${title}</div>
         <div class="info-row-desc">${desc}</div>
+        ${action ?? nothing}
       </div>
     `;
+  }
+
+  private _openSettings() {
+    void openExtensionSettings();
   }
 
   private _renderResultRow(item: JellyseerrResultItem, serverLabel: string) {
@@ -260,8 +316,10 @@ export class SearchSidebar extends LitElement {
 
   private _openJellyseerr(baseUrl: string, item: JellyseerrResultItem) {
     const slug = item.mediaType === 'movie' ? 'movie' : 'tv';
-    const url = `${baseUrl}/${slug}/${item.id}`;
-    window.dispatchEvent(new CustomEvent('media-connector-open-tab', { detail: { url } }));
+    // Through the service worker, like the cards on other sites. This used to be a
+    // `media-connector-open-tab` window event that nothing in the content script listened
+    // to, so the button did nothing in the extension.
+    void openInNewTab(`${baseUrl}/${slug}/${item.id}`);
   }
 
   private async _handleRequest(e: Event, item: JellyseerrResultItem, _serverLabel: string) {
@@ -289,6 +347,14 @@ export class SearchSidebar extends LitElement {
 }
 
 const nothing = html``;
+
+// This module is bundled into the content script. Chrome gives content
+// scripts no custom element registry (`customElements` is null in the
+// isolated world), so `@customElement` threw on import and took the whole
+// content script down on every site. Register only where a registry exists.
+if (globalThis.customElements && !globalThis.customElements.get('search-sidebar')) {
+  globalThis.customElements.define('search-sidebar', SearchSidebar);
+}
 
 declare global {
   interface HTMLElementTagNameMap {

@@ -13,6 +13,7 @@ import {
   requestTvShowEffect,
 } from '../utils/jellyseerr-client.js';
 import { resolveJellyseerrUrlEffect } from '../utils/url-resolver.js';
+import { chromeOpenSettingsDeps, openSettingsEffect } from './open-settings.js';
 import type { ExtensionConfig } from '../types/index.js';
 import type {
   CheckMediaMessage,
@@ -72,6 +73,7 @@ const handleMessage = (
     Match.when('TEST_CONNECTION', () => handleTestConnection()),
     Match.when('TEST_JELLYSEERR', () => handleTestJellyseerr()),
     Match.when('OPEN_TAB', () => handleOpenTab(message as OpenTabMessage)),
+    Match.when('OPEN_SETTINGS', () => openSettingsEffect(chromeOpenSettingsDeps())),
     Match.orElse((type) =>
       Effect.succeed({
         type: 'ERROR',
