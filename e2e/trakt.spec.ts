@@ -102,4 +102,29 @@ test.describe('Trakt — content script injection', () => {
     await expect(wtwItem).toBeVisible();
     await expect(wtwItem).not.toContainText('Request');
   });
+
+  test('app.trakt.tv in a non-English UI: sends the year and injects into Where to Watch', async ({
+    page,
+  }) => {
+    await setupContentScript(page, 'trakt-app-show.html', {
+      CHECK_MEDIA: mockResponses.checkMediaAvailable,
+    });
+
+    const sent = await page.evaluate(
+      () =>
+        (window as unknown as { __sentMessages: { type: string; payload: unknown }[] })
+          .__sentMessages,
+    );
+    expect(sent.find((m) => m.type === 'CHECK_MEDIA')?.payload).toMatchObject({
+      title: 'Менталист',
+      year: 2008,
+      mediaType: 'series',
+    });
+
+    const firstItem = page.locator(
+      '.trakt-where-to-watch-list .trakt-list-item-container > :first-child',
+    );
+    await expect(firstItem).toHaveId('media-connector-wtw-item');
+    await expect(firstItem).toContainText('Emby');
+  });
 });

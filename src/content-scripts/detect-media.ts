@@ -185,11 +185,18 @@ const extractTmdbIdFromPage = (): string | undefined => {
 const detectFromTrakt = (): DetectedMedia | undefined => {
   const url = window.location.href;
 
+  // The content script runs on every Trakt page (the site navigates without
+  // reloading), so skip pages that are not a movie or show.
+  if (!/^\/(movies|shows)\/[^/]+/.test(window.location.pathname)) return undefined;
+
   const titleElement = document.querySelector('h1');
   const title = titleElement?.textContent?.trim();
   if (!title) return undefined;
 
-  const yearElement = document.querySelector('.year');
+  // `.year` on earlier layouts; app.trakt.tv shows "2008 • 151 eps • TV-14 • Drama"
+  // in the summary subtitle.
+  const yearElement =
+    document.querySelector('.year') ?? document.querySelector('.trakt-summary-subtitle');
   const year = yearElement ? extractYear(yearElement.textContent ?? '') : undefined;
 
   // Extract external IDs from page links (sidebar external links)

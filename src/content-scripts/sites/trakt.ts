@@ -70,6 +70,29 @@ export const initTrakt = (): void => {
 };
 
 /**
+ * Find the item container of Trakt's "Where to Watch" list.
+ *
+ * The current app.trakt.tv wraps that list in `.trakt-where-to-watch-list`,
+ * so it is found whatever the UI language. Earlier layouts only had a generic
+ * list section, found by its English title.
+ */
+const findWhereToWatchContainer = (): Element | undefined => {
+  const current = document.querySelector('.trakt-where-to-watch-list .trakt-list-item-container');
+  if (current) return current;
+
+  const titleSpans = document.querySelectorAll<HTMLSpanElement>('.trakt-list-title span.title');
+  for (const span of titleSpans) {
+    if (span.textContent?.trim() === 'Where to Watch') {
+      return (
+        span.closest('.section-list-container')?.querySelector('.trakt-list-item-container') ??
+        undefined
+      );
+    }
+  }
+  return undefined;
+};
+
+/**
  * Modern Trakt UI: Attempt to inject the server item into "Where to Watch" list.
  */
 export const tryInjectTraktItem = (response: CheckMediaResponse): void => {
@@ -86,19 +109,7 @@ export const tryInjectTraktItem = (response: CheckMediaResponse): void => {
   // Don't duplicate — if our element already exists, skip
   if (document.getElementById('media-connector-wtw-item')) return;
 
-  // Find the "Where to Watch" section by its title text
-  const titleSpans = document.querySelectorAll<HTMLSpanElement>('.trakt-list-title span.title');
-  let whereToWatchSection: Element | undefined;
-  for (const span of titleSpans) {
-    if (span.textContent?.trim() === 'Where to Watch') {
-      whereToWatchSection = span.closest('.section-list-container') ?? undefined;
-      break;
-    }
-  }
-
-  if (!whereToWatchSection) return;
-
-  const listContainer = whereToWatchSection.querySelector('.trakt-list-item-container');
+  const listContainer = findWhereToWatchContainer();
   if (!listContainer) return;
 
   const contentStyle = `

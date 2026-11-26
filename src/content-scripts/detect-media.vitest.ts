@@ -514,6 +514,44 @@ describe('detectMedia', () => {
         expect(result!.episodeNumber).toBe(14);
       }
     });
+
+    it('reads the year from the summary subtitle on app.trakt.tv', () => {
+      Object.defineProperty(window, 'location', {
+        value: new URL('https://app.trakt.tv/shows/the-mentalist?season=1'),
+        writable: true,
+        configurable: true,
+      });
+
+      document.body.innerHTML = `
+        <div class="trakt-summary-title">
+          <h1 class="trakt-responsive-title">The Mentalist</h1>
+        </div>
+        <div class="trakt-summary-subtitle">
+          <p class="secondary">2008 • 151 eps • TV-14 • Drama</p>
+        </div>
+      `;
+
+      const result = detectMedia();
+      expect(result).toBeDefined();
+      expect(result!.type).toBe('series');
+      if (result!.type === 'series') {
+        expect(result!.title).toBe('The Mentalist');
+        expect(result!.year).toBe(2008);
+      }
+    });
+
+    it('ignores Trakt pages that are not a movie or show', () => {
+      for (const url of ['https://app.trakt.tv/', 'https://app.trakt.tv/users/someone/lists']) {
+        Object.defineProperty(window, 'location', {
+          value: new URL(url),
+          writable: true,
+          configurable: true,
+        });
+        document.body.innerHTML = '<h1>Welcome back</h1>';
+
+        expect(detectMedia()).toBeUndefined();
+      }
+    });
   });
 
   describe('Netflix detection', () => {
