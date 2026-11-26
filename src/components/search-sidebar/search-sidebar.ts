@@ -4,6 +4,7 @@ import { property } from 'lit/decorators.js';
 import {
   COMBINED_SVG,
   buildStatusBadge,
+  openInNewTab,
   requestFromSidebar,
 } from '../../content-scripts/common-ui.js';
 import type { SearchJellyseerrResponse, JellyseerrResultItem } from '../../types/messages.js';
@@ -259,8 +260,10 @@ export class SearchSidebar extends LitElement {
 
   private _openJellyseerr(baseUrl: string, item: JellyseerrResultItem) {
     const slug = item.mediaType === 'movie' ? 'movie' : 'tv';
-    const url = `${baseUrl}/${slug}/${item.id}`;
-    window.dispatchEvent(new CustomEvent('media-connector-open-tab', { detail: { url } }));
+    // Through the service worker, like the cards on other sites. This used to be a
+    // `media-connector-open-tab` window event that nothing in the content script listened
+    // to, so the button did nothing in the extension.
+    void openInNewTab(`${baseUrl}/${slug}/${item.id}`);
   }
 
   private async _handleRequest(e: Event, item: JellyseerrResultItem, _serverLabel: string) {
