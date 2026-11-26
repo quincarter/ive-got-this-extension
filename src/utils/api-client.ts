@@ -101,8 +101,77 @@ export const searchMediaEffect = (
     });
   });
 
+/** How long a fetched Jellyfin library index is reused, in milliseconds. */
+const JELLYFIN_INDEX_TTL_MS = 5 * 60 * 1000;
+
+/** Jellyfin library indexes keyed by `baseUrl|itemTypes`. */
+const jellyfinIndexCache = new Map<
+  string,
+  { readonly items: readonly MediaServerItem[]; readonly expiresAt: number }
+>();
+
+/**
+ * Forget every cached Jellyfin library index (e.g. after settings change).
+ */
+export const clearJellyfinIndexCache = (): void => {
+  jellyfinIndexCache.clear();
+};
+
+/**
+ * Fetch (or reuse) the list of movies and series on a Jellyfin server with
+ * their provider IDs. Jellyfin's `/Items` endpoint has no filter by provider
+ * ID, so lookups by IMDb/TMDb ID match against this list instead.
+ */
+const fetchJellyfinIndexEffect = (
+  config: ExtensionConfig,
+  baseUrl: string,
+  itemTypes: string,
+): Effect.Effect<readonly MediaServerItem[], ServerResponseError | NetworkError> =>
+  Effect.gen(function* () {
+    const cacheKey = `${baseUrl}|${itemTypes}`;
+    const cached = jellyfinIndexCache.get(cacheKey);
+    if (cached && Date.now() < cached.expiresAt) return cached.items;
+
+    const params = new URLSearchParams({
+      Recursive: 'true',
+      IncludeItemTypes: itemTypes,
+      Fields: 'ProviderIds',
+      EnableImages: 'false',
+      EnableUserData: 'false',
+      EnableTotalRecordCount: 'false',
+    });
+    const result = yield* fetchJson<MediaSearchResult>(`${baseUrl}/Items?${params.toString()}`, {
+      headers: buildApiHeaders(config),
+    });
+
+    jellyfinIndexCache.set(cacheKey, {
+      items: result.Items,
+      expiresAt: Date.now() + JELLYFIN_INDEX_TTL_MS,
+    });
+    return result.Items;
+  });
+
+/**
+ * True when an item carries the given provider ID (keys compared
+ * case-insensitively, since servers spell them `Tmdb`, `tmdb` or `TMDB`).
+ */
+export const hasProviderId = (
+  item: MediaServerItem,
+  providerName: 'Imdb' | 'Tmdb' | 'Tvdb',
+  providerId: string,
+): boolean =>
+  Object.entries(item.ProviderIds ?? {}).some(
+    ([key, value]) =>
+      key.toLowerCase() === providerName.toLowerCase() && String(value) === providerId,
+  );
+
 /**
  * Search for media by external provider ID (IMDb, TMDb).
+ *
+ * Emby filters server-side with `AnyProviderIdEquals`. Jellyfin's `/Items`
+ * has no such filter (only `hasImdbId`/`hasTmdbId`/`hasTvdbId`) and silently
+ * ignores unknown parameters, so the lookup matches against the server's
+ * movie/series index instead.
  */
 export const searchByProviderIdEffect = (
   config: ExtensionConfig,
@@ -112,6 +181,17 @@ export const searchByProviderIdEffect = (
 ): Effect.Effect<MediaSearchResult, ServerResponseError | NetworkError> =>
   Effect.gen(function* () {
     const baseUrl = yield* getResolvedBaseUrlEffect(config);
+
+    if (config.server.serverType === 'jellyfin') {
+      const index = yield* fetchJellyfinIndexEffect(
+        config,
+        baseUrl,
+        includeItemTypes ?? 'Movie,Series',
+      );
+      const items = index.filter((item) => hasProviderId(item, providerName, providerId));
+      return { Items: items, TotalRecordCount: items.length };
+    }
+
     const params = new URLSearchParams({
       Recursive: 'true',
     });
@@ -120,11 +200,7 @@ export const searchByProviderIdEffect = (
       params.set('IncludeItemTypes', includeItemTypes);
     }
 
-    if (config.server.serverType === 'emby') {
-      params.set('AnyProviderIdEquals', `${providerName}.${providerId}`);
-    } else {
-      params.set(`Any${providerName}Id`, providerId);
-    }
+    params.set('AnyProviderIdEquals', `${providerName}.${providerId}`);
 
     return yield* fetchJson<MediaSearchResult>(`${baseUrl}/Items?${params.toString()}`, {
       headers: buildApiHeaders(config),

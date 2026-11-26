@@ -278,7 +278,7 @@ describe('requestTvShow', () => {
     expect(body.seasons).toEqual([1, 2, 3]);
   });
 
-  it('omits seasons when not specified', async () => {
+  it('requests all seasons when none are specified', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
@@ -296,10 +296,10 @@ describe('requestTvShow', () => {
 
     const options = vi.mocked(fetch).mock.calls[0][1] as RequestInit;
     const body = JSON.parse(options.body as string);
-    expect(body.seasons).toBeUndefined();
+    expect(body.seasons).toBe('all');
   });
 
-  it('omits seasons when empty array', async () => {
+  it('requests all seasons for an empty array', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
@@ -317,7 +317,7 @@ describe('requestTvShow', () => {
 
     const options = vi.mocked(fetch).mock.calls[0][1] as RequestInit;
     const body = JSON.parse(options.body as string);
-    expect(body.seasons).toBeUndefined();
+    expect(body.seasons).toBe('all');
   });
 
   it('throws on failed request', async () => {

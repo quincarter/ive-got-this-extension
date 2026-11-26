@@ -188,6 +188,11 @@ export const requestMovieEffect = (
 
 /**
  * Request a TV show via Jellyseerr.
+ *
+ * Without explicit `seasons` the request asks for every season (`'all'`).
+ * Jellyseerr requires the field for TV requests: it rejects a body without
+ * it, and with `'all'` it skips seasons that are already requested or
+ * available.
  */
 export const requestTvShowEffect = (
   config: ExtensionConfig,
@@ -200,11 +205,8 @@ export const requestTvShowEffect = (
     const body: Record<string, unknown> = {
       mediaType: 'tv',
       mediaId: tmdbId,
+      seasons: seasons && seasons.length > 0 ? seasons : 'all',
     };
-
-    if (seasons && seasons.length > 0) {
-      body['seasons'] = seasons;
-    }
 
     const headers = buildJellyseerrHeaders(config);
     yield* clearJellyseerrCookiesEffect(baseUrl);
